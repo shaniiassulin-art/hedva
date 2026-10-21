@@ -894,6 +894,14 @@ details.legend[open] > summary::after{ content:"לחצי לסגירה"; }
 .callout-check{ --c:#1B7A99; --tint:#EAF6FA; --lbl:"✅ בדיקה"; }
 .callout-info{ --c:#6A6E78; --tint:#F6F6F4; --lbl:"📌 הערה"; }
 .callout-steps ol.steps{ margin:4px 0 6px; }
+
+/* ----- חיפוש חכם: כמה תרגילים ובחירת תרגיל ----- */
+.ai-focus{ width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:2px 0 12px; font-family:'Assistant',sans-serif; font-size:1rem; background:var(--paper); color:var(--ink); }
+.ai-focus:focus{ outline:3px solid var(--gold-soft); border-color:var(--gold); }
+.ai-ex{ margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--paper); }
+.ai-ex-label{ font-family:'Frank Ruhl Libre',serif; font-weight:700; color:var(--indigo-2); font-size:1.08rem; margin-bottom:2px; }
+.ai-ex-und{ color:var(--ink-soft); font-size:.94rem; margin-bottom:8px; }
+.ai-ex .ai-results{ margin-top:6px; }
 </style>
 </head>
 <body>
@@ -2202,6 +2210,8 @@ try {
       <p class="ai-setup-note">המפתח נשמר רק בדפדפן הזה ונשלח רק ל-Google. אל תשלחי אותו לאף אחד. בשימוש החינמי יש מגבלה של כמה בקשות בדקה, ו-Google עשויה להשתמש בתרגילים ששולחים כדי לשפר את המוצרים שלה.</p>
     </div>
     <div class="ai-keyok" id="aiKeyOk" hidden>🔑 מפתח Google שמור בדפדפן הזה <button type="button" id="aiKeyClear">החלפת מפתח</button></div>
+    <label for="aiFocus" class="ai-status">איזה תרגיל מהתמונה? (לא חובה)</label>
+    <input type="text" id="aiFocus" class="ai-focus" placeholder="למשל: שאלה 3 סעיף ב. להשאיר ריק = כל התרגילים" autocomplete="off">
     <label for="aiText" class="ai-status">התרגיל במילים (לא חובה אם יש תמונה)</label>
     <textarea id="aiText" placeholder="למשל: מצאי את תחום ההגדרה של f(x) = sqrt(x+3) / ln(4-x)"></textarea>
     <div class="ai-drop" id="aiDrop" tabindex="0" role="button" aria-label="העלאת תמונה">
@@ -2215,7 +2225,7 @@ try {
       <button type="button" class="ai-stop" id="aiClear" hidden>ניקוי וחיפוש חדש</button>
       <span class="ai-status" id="aiStatus" aria-live="polite"></span>
     </div>
-    <div class="ai-understood" id="aiUnderstood" hidden><div class="lbl">מה הבנתי מהתרגיל</div><div id="aiUnderstoodText"></div></div>
+    <div class="ai-understood" id="aiUnderstood" hidden><div class="lbl">הערה</div><div id="aiUnderstoodText"></div></div>
     <div class="ai-results" id="aiResults"></div>
   </div>
 </div>
@@ -2259,16 +2269,20 @@ try {
       return s;
     }).join('\n');
   }
-  function buildPrompt(userText, nImages){
-    return 'את/ה עוזר/ת לימוד בקורס חשבון דיפרנציאלי ואינטגרלי 1 (חדו״א 1). סטודנטית שלחה תרגיל'
+  function buildPrompt(userText, nImages, focus){
+    return 'את/ה עוזר/ת לימוד באתר הלימוד "'+(document.title||'')+'". סטודנטית שלחה חומר'
       +(nImages? ' ב-'+nImages+' תמונה/ות מצורפות':'')+(userText? ' ובטקסט':'')+'.\n'
-      +'המשימה: להבין מה התרגיל שואל, ולהפנות אותה לסעיפים באתר הלימוד שמכילים את החומר הדרוש כדי לפתור אותו. אל תפתור/י את התרגיל.\n\n'
+      +'המשימה: להבין מה כל תרגיל שואל, ולהפנות אותה לסעיפים באתר הלימוד שמכילים את החומר הדרוש כדי לפתור אותו. אל תפתור/י את התרגילים.\n\n'
+      +(focus
+        ? 'הסטודנטית ביקשה להתייחס רק לתרגיל הזה: "'+focus+'". מצא/י אותו לפי המספור שבתמונה או בטקסט (מספר שאלה ואולי אות או מספר סעיף), והתעלם/י מכל שאר התרגילים. '
+          +'אם יש לו כמה סעיפים ולא צוין סעיף - התייחס/י לכל הסעיפים שלו. אם התרגיל הזה לא נמצא, החזר/י exercises ריק והסבר/י ב-note מה כן רואים.\n\n'
+        : 'ייתכן שיש תרגיל אחד וייתכן שיש כמה. זהה/י כל תרגיל (או כל סעיף, אם הסעיפים בנושאים שונים) בנפרד, לפי המספור שמופיע בחומר.\n\n')
       +'רשימת הסעיפים באתר (המזהה בסוגריים מרובעים):\n'+catalogText()+'\n\n'
-      +(userText? 'טקסט התרגיל כפי שהסטודנטית כתבה:\n"""\n'+userText+'\n"""\n\n':'')
+      +(userText? 'הטקסט שהסטודנטית כתבה:\n"""\n'+userText+'\n"""\n\n':'')
       +'החזר/י JSON בלבד בצורה הזאת:\n'
-      +'{"understood":"1-2 משפטים בעברית: מה התרגיל שואל ואיזה סוג שאלה זה","matches":[{"id":"מזהה מהרשימה","why":"משפט אחד בעברית: מה בסעיף הזה עוזר לתרגיל הזה"}]}\n'
-      +'כללים: 1-4 התאמות, החשובה ביותר ראשונה. השתמש/י רק במזהים מהרשימה. העדף/י תת-נושא מדויק כשהוא מתאים. כתוב/י ביטויים מתמטיים בטקסט פשוט (למשל f(x) = sqrt(x+3)). '
-      +'אם התמונה לא קריאה או שהתרגיל לא קשור לחומר באתר, החזר/י matches ריק והסבר/י זאת ב-understood.';
+      +'{"exercises":[{"label":"המספור כפי שמופיע, למשל שאלה 3ב (או \\"התרגיל\\" אם אין מספור)","understood":"משפט אחד בעברית: מה התרגיל שואל","matches":[{"id":"מזהה מהרשימה","why":"משפט אחד בעברית: מה בסעיף הזה עוזר לתרגיל"}]}],"note":"הערה קצרה אם צריך, אחרת מחרוזת ריקה"}\n'
+      +'כללים: עד 8 תרגילים לפי הסדר שבו הם מופיעים. לכל תרגיל 1-3 התאמות, החשובה ביותר ראשונה. השתמש/י רק במזהים מהרשימה. העדף/י תת-נושא מדויק כשהוא מתאים. '
+      +'כתוב/י ביטויים מתמטיים בטקסט פשוט (למשל x^2 + 1). תרגיל שלא קשור לחומר באתר - matches ריק. אם התמונה לא קריאה - exercises ריק והסבר/י ב-note.';
   }
 
   // ---------- mode detection ----------
@@ -2387,14 +2401,15 @@ try {
   // ---------- run ----------
   goBtn.onclick=async ()=>{
     const userText=textEl.value.trim();
+    const focus=($('aiFocus').value||'').trim();
     if(!userText && !images.length){ setStatus('כתבי את התרגיל או העלי תמונה.', true); return; }
-    if(mode==='pending'){ setStatus('מתחבר ל-Claude, נסי שוב בעוד רגע.'); return; }
+    if(mode==='pending'){ setStatus('מתחבר, נסי שוב בעוד רגע.'); return; }
     if(mode==='none'){ setStatus('החיפוש החכם לא זמין בתצוגה הזאת.', true); return; }
     results.textContent=''; undBox.hidden=true; savedNote(false);
-    goBtn.disabled=true; stopBtn.hidden=false; setStatus('קורא את התרגיל…');
+    goBtn.disabled=true; stopBtn.hidden=false; setStatus(focus? 'מחפש את '+focus+'…' : 'קורא את התרגילים…');
     ctl=new AbortController();
     try {
-      const prompt=buildPrompt(userText, images.length);
+      const prompt=buildPrompt(userText, images.length, focus);
       let ans;
       if(mode==='claude'){
         const opts={signal:ctl.signal};
@@ -2403,7 +2418,7 @@ try {
       } else {
         ans=await askApi(prompt, ctl.signal);
       }
-      show(ans); setStatus(''); await saveLast(userText, ans);
+      show(ans); setStatus(''); await saveLast(userText, ans, focus);
     } catch(e){
       if(e && (e.code==='cancelled' || e.name==='AbortError')) setStatus('נעצר.');
       else setStatus((e && MSG[e.code]) || 'משהו השתבש בחיבור. נסי שוב.', true);
@@ -2412,22 +2427,38 @@ try {
   stopBtn.onclick=()=>{ if(ctl) ctl.abort(); };
 
   function show(ans){
-    const u=(ans && typeof ans.understood==='string')? ans.understood.trim():'';
-    if(u){ undText.textContent=u; undBox.hidden=false; }
-    const ms=(ans && Array.isArray(ans.matches)? ans.matches:[]).filter(m=>m && byId[String(m.id)] && document.getElementById(String(m.id))).slice(0,4);
-    if(!ms.length){ const p=document.createElement('p'); p.className='ai-status'; p.textContent='לא נמצא סעיף מתאים באתר. נסי לפרט יותר את התרגיל.'; results.append(p); return; }
-    ms.forEach((m,i)=>{
-      const info=byId[String(m.id)];
-      const b=document.createElement('button'); b.type='button'; b.className='ai-result';
-      const t=document.createElement('div'); t.className='t';
-      const tt=document.createElement('span'); tt.textContent=(i===0?'⭐ ':'')+(info.parent? info.parent+' ← '+info.title : info.title);
-      const pp=document.createElement('span'); pp.className='part'; pp.textContent=info.part;
-      t.append(tt,pp);
-      const w=document.createElement('div'); w.className='w'; w.textContent=String(m.why||'');
-      const g=document.createElement('div'); g.className='go'; g.textContent='מעבר לסעיף ←';
-      b.append(t,w,g);
-      b.onclick=()=>jump(String(m.id));
-      results.append(b);
+    // תומך גם בפורמט הישן (תרגיל אחד) וגם בחדש (כמה תרגילים)
+    let exs = (ans && Array.isArray(ans.exercises)) ? ans.exercises
+            : (ans && (ans.matches || ans.understood)) ? [{label:'', understood:ans.understood, matches:ans.matches}] : [];
+    exs = exs.filter(e=>e && typeof e==='object').slice(0,8);
+    const note=(ans && typeof ans.note==='string')? ans.note.trim() : '';
+    if(note){ undText.textContent=note; undBox.hidden=false; }
+    if(!exs.length){ const p=document.createElement('p'); p.className='ai-status'; p.textContent= note? '' : 'לא זוהה תרגיל. נסי צילום ברור יותר או כתבי את התרגיל.'; if(p.textContent) results.append(p); return; }
+    const many = exs.length>1;
+    exs.forEach((ex)=>{
+      const box=document.createElement('div'); box.className='ai-ex';
+      const label=String(ex.label||'').trim();
+      if(many || label){ const h=document.createElement('div'); h.className='ai-ex-label'; h.textContent=label||'התרגיל'; box.append(h); }
+      const u=String(ex.understood||'').trim();
+      if(u){ const d=document.createElement('div'); d.className='ai-ex-und'; d.textContent=u; box.append(d); }
+      const list=document.createElement('div'); list.className='ai-results';
+      const ms=(Array.isArray(ex.matches)? ex.matches:[]).filter(m=>m && byId[String(m.id)] && document.getElementById(String(m.id))).slice(0,3);
+      if(!ms.length){ const p=document.createElement('p'); p.className='ai-status'; p.textContent='לא נמצא סעיף מתאים באתר לתרגיל הזה.'; list.append(p); }
+      ms.forEach((m,i)=>{
+        const info=byId[String(m.id)];
+        const b=document.createElement('button'); b.type='button'; b.className='ai-result';
+        const t=document.createElement('div'); t.className='t';
+        const tt=document.createElement('span'); tt.textContent=(i===0?'⭐ ':'')+(info.parent? info.parent+' ← '+info.title : info.title);
+        const pp=document.createElement('span'); pp.className='part'; pp.textContent=info.part;
+        t.append(tt,pp);
+        const w=document.createElement('div'); w.className='w'; w.textContent=String(m.why||'');
+        const g=document.createElement('div'); g.className='go'; g.textContent='מעבר לסעיף ←';
+        b.append(t,w,g);
+        b.onclick=()=>jump(String(m.id));
+        list.append(b);
+      });
+      box.append(list);
+      results.append(box);
     });
   }
   function jump(id){
@@ -2447,9 +2478,9 @@ try {
         const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.8)); };
       img.onerror=()=>{ URL.revokeObjectURL(url); res(null); }; img.src=url; });
   }
-  async function saveLast(text, ans){
+  async function saveLast(text, ans, focus){
     let imgs=[]; try { for(const f of images){ const d=await smallDataUrl(f); if(d) imgs.push(d); } } catch(e){}
-    const rec={text, ans, imgs, t:Date.now()};
+    const rec={text, focus:focus||'', ans, imgs, t:Date.now()};
     try { localStorage.setItem(LAST_STORE, JSON.stringify(rec)); }
     catch(e){ try { rec.imgs=[]; localStorage.setItem(LAST_STORE, JSON.stringify(rec)); } catch(e2){} }
     $('aiClear').hidden=false;
@@ -2459,10 +2490,11 @@ try {
     let rec=null; try { rec=JSON.parse(localStorage.getItem(LAST_STORE)||'null'); } catch(e){ rec=null; }
     if(!rec || !rec.ans) return;
     textEl.value=rec.text||'';
+    $('aiFocus').value=rec.focus||'';
     images=(rec.imgs||[]).map(d=>{ try{ return dataUrlToBlob(d); }catch(e){ return null; } }).filter(Boolean);
     renderThumbs(); show(rec.ans); savedNote(true);
   }
-  $('aiClear').onclick=()=>{ try{ localStorage.removeItem(LAST_STORE); }catch(e){} textEl.value=''; images=[]; renderThumbs(); results.textContent=''; undBox.hidden=true; savedNote(false); $('aiClear').hidden=true; setStatus(''); textEl.focus(); };
+  $('aiClear').onclick=()=>{ try{ localStorage.removeItem(LAST_STORE); }catch(e){} textEl.value=''; $('aiFocus').value=''; images=[]; renderThumbs(); results.textContent=''; undBox.hidden=true; savedNote(false); $('aiClear').hidden=true; setStatus(''); textEl.focus(); };
   loadLast();
   detect();
   } catch(err){ console.error(err); }
