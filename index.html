@@ -2281,7 +2281,7 @@ try {
       +(userText? 'הטקסט שהסטודנטית כתבה:\n"""\n'+userText+'\n"""\n\n':'')
       +'החזר/י JSON בלבד בצורה הזאת:\n'
       +'{"exercises":[{"label":"המספור כפי שמופיע, למשל שאלה 3ב (או \\"התרגיל\\" אם אין מספור)","understood":"משפט אחד בעברית: מה התרגיל שואל","matches":[{"id":"מזהה מהרשימה","why":"משפט אחד בעברית: מה בסעיף הזה עוזר לתרגיל"}]}],"note":"הערה קצרה אם צריך, אחרת מחרוזת ריקה"}\n'
-      +'כללים: עד 8 תרגילים לפי הסדר שבו הם מופיעים. לכל תרגיל 1-3 התאמות, החשובה ביותר ראשונה. השתמש/י רק במזהים מהרשימה. העדף/י תת-נושא מדויק כשהוא מתאים. '
+      +'כללים: עד 8 תרגילים לפי הסדר שבו הם מופיעים. לכל תרגיל 1-4 התאמות (אם יש רק תרגיל אחד, או שהסטודנטית בחרה תרגיל - עד 5). הכלל/י רק סעיפים שבאמת נדרשים לפתרון, החשובה ביותר ראשונה. השתמש/י רק במזהים מהרשימה. העדף/י תת-נושא מדויק כשהוא מתאים. '
       +'כתוב/י ביטויים מתמטיים בטקסט פשוט (למשל x^2 + 1). תרגיל שלא קשור לחומר באתר - matches ריק. אם התמונה לא קריאה - exercises ריק והסבר/י ב-note.';
   }
 
@@ -2442,7 +2442,7 @@ try {
       const u=String(ex.understood||'').trim();
       if(u){ const d=document.createElement('div'); d.className='ai-ex-und'; d.textContent=u; box.append(d); }
       const list=document.createElement('div'); list.className='ai-results';
-      const ms=(Array.isArray(ex.matches)? ex.matches:[]).filter(m=>m && byId[String(m.id)] && document.getElementById(String(m.id))).slice(0,3);
+      const ms=(Array.isArray(ex.matches)? ex.matches:[]).filter(m=>m && byId[String(m.id)] && document.getElementById(String(m.id))).slice(0, many?4:5);
       if(!ms.length){ const p=document.createElement('p'); p.className='ai-status'; p.textContent='לא נמצא סעיף מתאים באתר לתרגיל הזה.'; list.append(p); }
       ms.forEach((m,i)=>{
         const info=byId[String(m.id)];
