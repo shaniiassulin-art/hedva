@@ -906,6 +906,21 @@ details.legend[open] > summary::after{ content:"לחצי לסגירה"; }
 /* ----- חיפוש חכם: שם חלק ארוך נשבר לשורות ולא מצמצם את שם הסעיף ----- */
 .ai-results .ai-result .t .part{ white-space:normal; flex:0 1 40%; text-align:left; }
 .ai-results .ai-result .t > span:first-child{ flex:1 1 60%; }
+
+/* ----- כפתור רענון ----- */
+.refresh-btn{ position:fixed; z-index:20; left:calc(20px + env(safe-area-inset-left)); bottom:calc(82px + env(safe-area-inset-bottom));
+  width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--indigo);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+  box-shadow:0 4px 14px rgba(0,0,0,.18); transition:opacity .2s ease, transform .2s ease; }
+.refresh-btn svg{ width:22px; height:22px; }
+.refresh-btn:hover{ border-color:var(--gold); color:var(--indigo-2); }
+.refresh-btn.spin svg{ animation:refreshSpin .8s linear infinite; }
+@keyframes refreshSpin{ to{ transform:rotate(360deg); } }
+/* בטלפון: הכפתורים הצפים מתפנים כשגוללים למטה (קריאה) וחוזרים כשגוללים למעלה */
+@media (max-width:880px){
+  .refresh-btn.fab-away, .top-btn.fab-away{ opacity:0 !important; pointer-events:none !important; transform:translateY(12px); }
+}
+@media print{ .refresh-btn{ display:none; } }
 </style>
 </head>
 <body>
@@ -1928,6 +1943,9 @@ details.legend[open] > summary::after{ content:"לחצי לסגירה"; }
   </main>
 </div>
 
+<button type="button" class="refresh-btn" id="refreshBtn" aria-label="רענון האתר וטעינת העדכונים" title="רענון - טעינת העדכונים האחרונים">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><polyline points="20 4 20 9 15 9"/></svg>
+</button>
 <a href="#intro" class="top-btn" id="topBtn" aria-label="חזרה למעלה">↑</a>
 <script>
   try {
@@ -2503,6 +2521,56 @@ try {
   detect();
   } catch(err){ console.error(err); }
 })();
+</script>
+<script>
+// ---- כפתור רענון: טעינה מחדש מהשרת, בלי עותק שמור, ובאותו מקום בעמוד ----
+try {
+  (function(){
+    try {
+      const u = new URL(location.href);
+      if(u.searchParams.has('r')){ u.searchParams.delete('r'); history.replaceState(null, '', u.pathname + u.search + u.hash); }
+    } catch(e){}
+    // חזרה לעוגן אחרי רענון (אחרי שהגופנים והפריסה נטענו)
+    try {
+      const a = JSON.parse(sessionStorage.getItem('refreshAnchor') || 'null');
+      if(a){
+        sessionStorage.removeItem('refreshAnchor');
+        const go = () => { const el=document.getElementById(a.id); if(el) window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - a.off, behavior:'instant'}); };
+        const later = () => { go(); setTimeout(go, 250); };
+        if(document.readyState === 'complete') later(); else window.addEventListener('load', () => setTimeout(later, 80));
+        if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(go, 120));
+      }
+    } catch(e){}
+    const btn = document.getElementById('refreshBtn');
+    if(btn){
+      btn.addEventListener('click', () => {
+        btn.classList.add('spin');
+        try { localStorage.setItem('examGuideScrollY_v1', String(window.scrollY)); } catch(e){}
+        try {
+          // עוגן: הכותרת האחרונה שמעל ראש המסך, והמרחק ממנה - כדי לחזור בדיוק לאותו מקום
+          let best=null;
+          document.querySelectorAll('main h2[id], main h3[id], main h4[id], main section[id]').forEach(el=>{ const r=el.getBoundingClientRect(); if(!r.height) return; const t=r.top; if(t<=10 && (!best || t>best.t)) best={id:el.id,t}; });
+          if(best) sessionStorage.setItem('refreshAnchor', JSON.stringify({id:best.id, off:best.t}));
+        } catch(e){}
+        try {
+          const u = new URL(location.href);
+          u.searchParams.set('r', Date.now());
+          location.replace(u.toString());
+        } catch(e){ location.reload(); }
+      });
+    }
+    // בטלפון: מסתירים את הכפתורים הצפים בזמן גלילה למטה, מחזירים בגלילה למעלה
+    const fabs = [btn, document.getElementById('topBtn')].filter(Boolean);
+    let lastY = window.scrollY;
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY, d = y - lastY;
+      if(Math.abs(d) < 6) return;
+      const away = d > 0 && y > 120;
+      fabs.forEach(f => f.classList.toggle('fab-away', away));
+      lastY = y;
+    }, {passive:true});
+  })();
+} catch(err){}
 </script>
 </body>
 </html>
